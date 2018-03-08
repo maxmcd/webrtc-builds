@@ -64,11 +64,46 @@ PATH=$DEPOT_TOOLS_DIR:$DEPOT_TOOLS_DIR/python276_bin:$PATH
 
 [ "$DEBUG" = 1 ] && set -x
 
+mkdir -p $OUTDIR
+OUTDIR=$(cd $OUTDIR && pwd -P)
 
-# label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>-<target-cpu>
-LABEL=$PROJECT_NAME-$REVISION_NUMBER-$(short-rev $REVISION)-$TARGET_OS-$TARGET_CPU
-echo "Packaging WebRTC: $LABEL"
-package $PLATFORM $OUTDIR $LABEL $DIR/resource
-manifest $PLATFORM $OUTDIR $LABEL
+detect-platform
+TARGET_OS=${TARGET_OS:-$PLATFORM}
+TARGET_CPU=${TARGET_CPU:-x64}
 
-echo Build successful
+echo "Host OS: $PLATFORM"
+echo "Target OS: $TARGET_OS"
+echo "Target CPU: $TARGET_CPU"
+
+echo Checking build environment dependencies
+check::build::env $PLATFORM "$TARGET_CPU"
+
+echo Checking depot-tools
+check::depot-tools $PLATFORM $DEPOT_TOOLS_URL $DEPOT_TOOLS_DIR
+
+if [ ! -z $BRANCH ]; then
+  REVISION=$(git ls-remote $REPO_URL --heads $BRANCH | head --lines 1 | cut --fields 1) || \
+    { echo "Cound not get branch revision" && exit 1; }
+   echo "Building branch: $BRANCH"
+else
+  REVISION=${REVISION:-$(latest-rev $REPO_URL)} || \
+    { echo "Could not get latest revision" && exit 1; }
+fi
+echo "Building revision: $REVISION"
+REVISION_NUMBER=$(revision-number $REPO_URL $REVISION) || \
+  { echo "Could not get revision number" && exit 1; }
+echo "Associated revision number: $REVISION_NUMBER"
+
+if [ $BUILD_ONLY = 0 ]; then
+  echo "Checking out WebRTC revision (this will take a while): $REVISION"
+  checkout "$TARGET_OS" $OUTDIR $REVISION
+
+  echo Checking WebRTC dependencies
+  check::webrtc::deps $PLATFORM $OUTDIR "$TARGET_OS"
+
+  echo Patching WebRTC source
+  patch $PLATFORM $OUTDIR $ENABLE_RTTI
+fi
+
+echo Compiling WebRTC
+compile $PLATFORM $OUTDIR "$TARGET_OS" "$TARGET_CPU" "$BLACKLIST"
