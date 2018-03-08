@@ -64,6 +64,7 @@ PATH=$DEPOT_TOOLS_DIR:$DEPOT_TOOLS_DIR/python276_bin:$PATH
 
 [ "$DEBUG" = 1 ] && set -x
 
+REVISION_NUMBER=$(revision-number $REPO_URL $REVISION)
 
 # label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>-<target-cpu>
 LABEL=$PROJECT_NAME-$REVISION_NUMBER-$(short-rev $REVISION)-$TARGET_OS-$TARGET_CPU
