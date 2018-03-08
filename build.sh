@@ -64,6 +64,19 @@ PATH=$DEPOT_TOOLS_DIR:$DEPOT_TOOLS_DIR/python276_bin:$PATH
 
 [ "$DEBUG" = 1 ] && set -x
 
+detect-platform
+TARGET_OS=${TARGET_OS:-$PLATFORM}
+TARGET_CPU=${TARGET_CPU:-x64}
+
+
+if [ ! -z $BRANCH ]; then
+  REVISION=$(git ls-remote $REPO_URL --heads $BRANCH | head --lines 1 | cut --fields 1) || \
+    { echo "Cound not get branch revision" && exit 1; }
+   echo "Building branch: $BRANCH"
+else
+  REVISION=${REVISION:-$(latest-rev $REPO_URL)} || \
+    { echo "Could not get latest revision" && exit 1; }
+fi
 REVISION_NUMBER=$(revision-number $REPO_URL $REVISION)
 
 # label is <projectname>-<rev-number>-<short-rev-sha>-<target-os>-<target-cpu>
